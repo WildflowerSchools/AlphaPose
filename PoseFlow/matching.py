@@ -15,6 +15,9 @@ import numpy as np
 import time
 import argparse
 
+
+ORB_NFEATURES = int(os.getenv("ALPHAPOSE_POSEFLOW_ORB_NFEATURES", 10000))
+
 def generate_fake_cor(img, out_path):
     print("Generate fake correspondence files...%s"%out_path)
     fd = open(out_path,"w")
@@ -41,7 +44,7 @@ def orb_matching(img1_path, img2_path, vidname, img1_id, img2_id):
         img2 = cv2.cvtColor(img2_path, cv2.COLOR_BGR2RGB)
     
     # Initiate ORB detector
-    orb = cv2.ORB_create(nfeatures=10000, scoreType=cv2.ORB_FAST_SCORE)
+    orb = cv2.ORB_create(nfeatures=ORB_NFEATURES, scoreType=cv2.ORB_FAST_SCORE)
 
     # find the keypoints and descriptors with ORB
     kp1, des1 = orb.detectAndCompute(img1,None)
