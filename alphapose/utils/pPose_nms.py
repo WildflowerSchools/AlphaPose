@@ -330,6 +330,8 @@ def write_json(all_results, outputpath, form=None, for_eval=False):
                     tmp['joints'].append(result['keypoints'][i])
                     tmp['joints'].append(result['keypoints'][i+1])
                     tmp['joints'].append(result['keypoints'][i+2])
+                if 'idx' in human.keys():
+                    tmp['idx'] = human['idx']
                 json_results_cmu[result['image_id']]['bodies'].append(tmp)
             elif form == 'open': # the form of OpenPose
                 if result['image_id'] not in json_results_cmu.keys():
