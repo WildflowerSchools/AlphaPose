@@ -332,6 +332,8 @@ def write_json(all_results, outputpath, form=None, for_eval=False):
                     tmp['joints'].append(result['keypoints'][i+2])
                 if 'idx' in human.keys():
                     tmp['idx'] = human['idx']
+                if 'idx' in human.keys():
+                    tmp['score'] = result['score']
                 json_results_cmu[result['image_id']]['bodies'].append(tmp)
             elif form == 'open': # the form of OpenPose
                 if result['image_id'] not in json_results_cmu.keys():
@@ -370,4 +372,3 @@ def write_json(all_results, outputpath, form=None, for_eval=False):
     else:
         with open(os.path.join(outputpath,'alphapose-results.json'), 'w') as json_file:
             json_file.write(json.dumps(json_results))
-
