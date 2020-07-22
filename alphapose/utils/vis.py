@@ -109,7 +109,7 @@ def vis_frame_dense(frame, im_res, add_bbox=False, format='coco'):
             if start_p in part_line and end_p in part_line:
                 start_xy = part_line[start_p]
                 end_xy = part_line[end_p]
-                cv2.line(img, start_xy, end_xy, line_color[i], (kp_scores[start_p] + kp_scores[end_p]) + 1)
+                cv2.line(img, start_xy, end_xy, line_color[i], int(kp_scores[start_p] + kp_scores[end_p]) + 1)
     return img
 
 
@@ -156,13 +156,16 @@ def vis_frame_fast(frame, im_res, add_bbox=False, format='coco'):
         kp_scores = torch.cat((kp_scores, torch.unsqueeze((kp_scores[5, :] + kp_scores[6, :]) / 2, 0)))
         # Draw bboxes
         if add_bbox:
-            from PoseFlow.poseflow_infer import get_box
-            keypoints = []
-            for n in range(kp_scores.shape[0]):
-                keypoints.append(float(kp_preds[n, 0]))
-                keypoints.append(float(kp_preds[n, 1]))
-                keypoints.append(float(kp_scores[n]))
-            bbox = get_box(keypoints, height, width)
+            if 'box' in human.keys():
+                bbox = human['box']
+            else:
+                from PoseFlow.poseflow_infer import get_box
+                keypoints = []
+                for n in range(kp_scores.shape[0]):
+                    keypoints.append(float(kp_preds[n, 0]))
+                    keypoints.append(float(kp_preds[n, 1]))
+                    keypoints.append(float(kp_scores[n]))
+                bbox = get_box(keypoints, height, width)
             # color = get_color_fast(int(abs(human['idx'][0])))
             cv2.rectangle(img, (int(bbox[0]), int(bbox[2])), (int(bbox[1]), int(bbox[3])), BLUE, 2)
             # Draw indexes of humans
@@ -180,7 +183,7 @@ def vis_frame_fast(frame, im_res, add_bbox=False, format='coco'):
             if start_p in part_line and end_p in part_line:
                 start_xy = part_line[start_p]
                 end_xy = part_line[end_p]
-                cv2.line(img, start_xy, end_xy, line_color[i], 2 * (kp_scores[start_p] + kp_scores[end_p]) + 1)
+                cv2.line(img, start_xy, end_xy, line_color[i], 2 * int(kp_scores[start_p] + kp_scores[end_p]) + 1)
     return img
 
 
@@ -230,13 +233,17 @@ def vis_frame(frame, im_res, add_bbox=False, format='coco'):
         kp_scores = torch.cat((kp_scores, torch.unsqueeze((kp_scores[5, :] + kp_scores[6, :]) / 2, 0)))
         # Draw bboxes
         if add_bbox:
-            from PoseFlow.poseflow_infer import get_box
-            keypoints = []
-            for n in range(kp_scores.shape[0]):
-                keypoints.append(float(kp_preds[n, 0]))
-                keypoints.append(float(kp_preds[n, 1]))
-                keypoints.append(float(kp_scores[n]))
-            bbox = get_box(keypoints, height, width)
+            if 'box' in human.keys():
+                bbox = human['box']
+                bbox = [bbox[0], bbox[0]+bbox[2], bbox[1], bbox[1]+bbox[3]]#xmin,xmax,ymin,ymax
+            else:
+                from PoseFlow.poseflow_infer import get_box
+                keypoints = []
+                for n in range(kp_scores.shape[0]):
+                    keypoints.append(float(kp_preds[n, 0]))
+                    keypoints.append(float(kp_preds[n, 1]))
+                    keypoints.append(float(kp_scores[n]))
+                bbox = get_box(keypoints, height, width)
             bg = img.copy()
             # color = get_color_fast(int(abs(human['idx'][0][0])))
             cv2.rectangle(bg, (int(bbox[0]/2), int(bbox[2]/2)), (int(bbox[1]/2),int(bbox[3]/2)), BLUE, 1)
@@ -273,9 +280,9 @@ def vis_frame(frame, im_res, add_bbox=False, format='coco'):
                 length = ((Y[0] - Y[1]) ** 2 + (X[0] - X[1]) ** 2) ** 0.5
                 angle = math.degrees(math.atan2(Y[0] - Y[1], X[0] - X[1]))
                 stickwidth = (kp_scores[start_p] + kp_scores[end_p]) + 1
-                polygon = cv2.ellipse2Poly((int(mX), int(mY)), (int(length / 2), stickwidth), int(angle), 0, 360, 1)
+                polygon = cv2.ellipse2Poly((int(mX), int(mY)), (int(length / 2), int(stickwidth)), int(angle), 0, 360, 1)
                 cv2.fillConvexPoly(bg, polygon, line_color[i])
-                # cv2.line(bg, start_xy, end_xy, line_color[i], (2 * (kp_scores[start_p] + kp_scores[end_p])) + 1)
+                # cv2.line(bg, start_xy, end_xy, line_color[i], (2 * int(kp_scores[start_p] + kp_scores[end_p])) + 1)
                 transparency = max(0, min(1, 0.5 * (kp_scores[start_p] + kp_scores[end_p])))
                 img = cv2.addWeighted(bg, transparency, img, 1 - transparency, 0)
     img = cv2.resize(img, (width, height), interpolation=cv2.INTER_CUBIC)

@@ -6,6 +6,7 @@
 * PyTorch 1.1+
 * torchvision 0.3.0+
 * Linux, [Windows user check here](#Windows)
+* GCC<6.0, check https://github.com/facebookresearch/maskrcnn-benchmark/issues/25
 
 ### Code installation
 
@@ -27,7 +28,7 @@ cd AlphaPose
 # 4. install
 export PATH=/usr/local/cuda/bin/:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH
-pip install cython
+python -m pip install cython
 sudo apt-get install libyaml-dev
 python setup.py build develop
 ```
