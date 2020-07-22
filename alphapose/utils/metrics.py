@@ -3,6 +3,7 @@
 # Written by Jiefeng Li (jeff.lee.sjtu@gmail.com)
 # -----------------------------------------------------
 
+from functools import reduce
 import os
 import sys
 
@@ -66,13 +67,15 @@ def mask_cross_entropy(pred, target):
         pred, target, reduction='mean')[None]
 
 
-def evaluate_mAP(res_file, ann_type='bbox', ann_file='person_keypoints_val2017.json', silence=True):
+def evaluate_mAP(res_file, cfg_num_keypoints=17, ann_type='bbox', ann_file='annotations/person_keypoints_val2017.json', ann_data_type='Mscoco', silence=True):
     """Evaluate mAP result for coco dataset.
 
     Parameters
     ----------
     res_file: str
         Path to result json file.
+    res_num_keypoints: int
+        Expected number
     ann_type: str
         annotation type, including: `bbox`, `segm`, `keypoints`.
     ann_file: str
@@ -85,14 +88,23 @@ def evaluate_mAP(res_file, ann_type='bbox', ann_file='person_keypoints_val2017.j
         def write(self, arg):
             pass
 
-    ann_file = os.path.join('./data/coco/annotations/', ann_file)
+    ann_file = os.path.join('./data/coco/', ann_file)
 
     if silence:
         nullwrite = NullWriter()
         oldstdout = sys.stdout
         sys.stdout = nullwrite  # disable output
 
+    print("ANN File: %s" % ann_file)
+    print("Res File: %s" % res_file)
     cocoGt = COCO(ann_file)
+
+    if ann_data_type == 'Wfcoco17' and cfg_num_keypoints == 17:
+        for _, ann in cocoGt.anns.items():
+            if len(ann['keypoints']) == 18 * 3:
+                ann['keypoints'] = ann['keypoints'][:17*3]
+                ann['num_keypoints'] = reduce(lambda count, v: count + (v > 0), ann['keypoints'][2::3], 0)
+
     cocoDt = cocoGt.loadRes(res_file)
 
     cocoEval = COCOeval(cocoGt, cocoDt, ann_type)

@@ -88,8 +88,10 @@ class CustomDataset(data.Dataset):
 
     def __getitem__(self, idx):
         # get image id
-        img_path = self._items[idx]
-        img_id = int(os.path.splitext(os.path.basename(img_path))[0])
+        #img_path = self._items[idx]
+        #img_id = os.path.splitext(os.path.basename(img_path))[0]
+        img_id = self._items[idx]
+        img_path = os.path.join(self._root, self._img_prefix, self._labels[idx]['file_name'])
 
         # load ground truth, including bbox, keypoints, image size
         label = copy.deepcopy(self._labels[idx])

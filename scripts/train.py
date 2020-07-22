@@ -16,7 +16,7 @@ from alphapose.utils.metrics import DataLogger, calc_accuracy, evaluate_mAP
 from alphapose.utils.transforms import get_func_heatmap_to_coord
 
 num_gpu = torch.cuda.device_count()
-valid_batch = 1 * num_gpu
+valid_batch = 1 * (num_gpu or 1)
 if opt.sync:
     norm_layer = nn.SyncBatchNorm
 else:
@@ -32,11 +32,18 @@ def train(opt, train_loader, m, criterion, optimizer, writer):
 
     for i, (inps, labels, label_masks, _, bboxes) in enumerate(train_loader):
         if isinstance(inps, list):
-            inps = [inp.cuda().requires_grad_() for inp in inps]
+            if len(opt.gpus) > 0:
+                inps = [inp.cuda() for inp in inps]
+
+            inps = [inp.requires_grad_() for inp in inps]
         else:
-            inps = inps.cuda().requires_grad_()
-        labels = labels.cuda()
-        label_masks = label_masks.cuda()
+            if len(opt.gpus) > 0:
+                inps = inps.cuda()
+            inps = inps.requires_grad_()
+
+        if len(opt.gpus) > 0:
+            labels = labels.cuda()
+            label_masks = label_masks.cuda()
 
         output = m(inps)
 
@@ -86,10 +93,11 @@ def validate(m, opt, heatmap_to_coord, batch_size=20):
     m.eval()
 
     for inps, crop_bboxes, bboxes, img_ids, scores, imghts, imgwds in tqdm(det_loader, dynamic_ncols=True):
-        if isinstance(inps, list):
-            inps = [inp.cuda() for inp in inps]
-        else:
-            inps = inps.cuda()
+        if len(opt.gpus) > 0:
+            if isinstance(inps, list):
+                inps = [inp.cuda() for inp in inps]
+            else:
+                inps = inps.cuda()
         output = m(inps)
 
         pred = output.cpu().data.numpy()
@@ -114,7 +122,7 @@ def validate(m, opt, heatmap_to_coord, batch_size=20):
 
     with open(os.path.join(opt.work_dir, 'test_kpt.json'), 'w') as fid:
         json.dump(kpt_json, fid)
-    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_kpt.json'), ann_type='keypoints')
+    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_kpt.json'), cfg_num_keypoints=cfg.DATA_PRESET.NUM_JOINTS, ann_type='keypoints', ann_data_type=cfg.DATASET.VAL.TYPE, ann_file=cfg.DATASET.VAL.ANN)
     return res['AP']
 
 
@@ -128,10 +136,11 @@ def validate_gt(m, opt, cfg, heatmap_to_coord, batch_size=20):
     m.eval()
 
     for inps, labels, label_masks, img_ids, bboxes in tqdm(gt_val_loader, dynamic_ncols=True):
-        if isinstance(inps, list):
-            inps = [inp.cuda() for inp in inps]
-        else:
-            inps = inps.cuda()
+        if len(opt.gpus) > 0:
+            if isinstance(inps, list):
+                inps = [inp.cuda() for inp in inps]
+            else:
+                inps = inps.cuda()
         output = m(inps)
 
         pred = output.cpu().data.numpy()
@@ -156,7 +165,7 @@ def validate_gt(m, opt, cfg, heatmap_to_coord, batch_size=20):
 
     with open(os.path.join(opt.work_dir, 'test_gt_kpt.json'), 'w') as fid:
         json.dump(kpt_json, fid)
-    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_gt_kpt.json'), ann_type='keypoints')
+    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_gt_kpt.json'), cfg_num_keypoints=cfg.DATA_PRESET.NUM_JOINTS, ann_type='keypoints', ann_data_type=cfg.DATASET.VAL.TYPE, ann_file=cfg.DATASET.VAL.ANN)
     return res['AP']
 
 
@@ -169,9 +178,13 @@ def main():
 
     # Model Initialize
     m = preset_model(cfg)
-    m = nn.DataParallel(m).cuda()
+    m = nn.DataParallel(m)
+    criterion = torch.nn.MSELoss()
+    if len(opt.gpus) > 0:
+        m = m.cuda()
+        criterion = criterion.cuda()
 
-    criterion = torch.nn.MSELoss().cuda()
+    # criterion = torch.nn.MSELoss().cuda()
     if cfg.TRAIN.OPTIMIZER == 'adam':
         optimizer = torch.optim.Adam(m.parameters(), lr=cfg.TRAIN.LR)
     elif cfg.TRAIN.OPTIMIZER == 'rmsprop':
@@ -183,8 +196,12 @@ def main():
     writer = SummaryWriter('.tensorboard/{}-{}'.format(opt.exp_id, cfg.FILE_NAME))
 
     train_dataset = builder.build_dataset(cfg.DATASET.TRAIN, preset_cfg=cfg.DATA_PRESET, train=True)
+    print("Dataset Size: %d" % len(train_dataset))
+    print("Batch Size: %s" % (cfg.TRAIN.BATCH_SIZE * (num_gpu or 1)))
+    print("Num Workers: %s" % (opt.nThreads))
+
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu, shuffle=True, num_workers=opt.nThreads)
+        train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE * (num_gpu or 1), shuffle=True, num_workers=opt.nThreads)
 
     heatmap_to_coord = get_func_heatmap_to_coord(cfg)
 
@@ -221,7 +238,7 @@ def main():
             # Reset dataset
             train_dataset = builder.build_dataset(cfg.DATASET.TRAIN, preset_cfg=cfg.DATA_PRESET, train=True, dpg=True)
             train_loader = torch.utils.data.DataLoader(
-                train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE * num_gpu, shuffle=True, num_workers=opt.nThreads)
+                train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE * (num_gpu or 1), shuffle=True, num_workers=opt.nThreads)
 
     torch.save(m.module.state_dict(), './exp/{}-{}/final_DPG.pth'.format(opt.exp_id, cfg.FILE_NAME))
 
@@ -231,10 +248,16 @@ def preset_model(cfg):
 
     if cfg.MODEL.PRETRAINED:
         logger.info(f'Loading model from {cfg.MODEL.PRETRAINED}...')
-        model.load_state_dict(torch.load(cfg.MODEL.PRETRAINED))
+
+        map_location = None if len(opt.gpus) > 0 else torch.device('cpu')
+
+        model.load_state_dict(torch.load(cfg.MODEL.PRETRAINED, map_location=map_location))
     elif cfg.MODEL.TRY_LOAD:
         logger.info(f'Loading model from {cfg.MODEL.TRY_LOAD}...')
-        pretrained_state = torch.load(cfg.MODEL.TRY_LOAD)
+
+        map_location = None if len(opt.gpus) > 0 else torch.device('cpu')
+        pretrained_state = torch.load(cfg.MODEL.TRY_LOAD, map_location=map_location)
+
         model_state = model.state_dict()
         pretrained_state = {k: v for k, v in pretrained_state.items()
                             if k in model_state and v.size() == model_state[k].size()}

@@ -93,7 +93,7 @@ class Mscoco_det(data.Dataset):
         for entry in tqdm(_coco.loadImgs(image_ids)):
             abs_path = os.path.join(
                 self._root, self._img_prefix, entry['file_name'])
-            det = det_model.detect_one_img(abs_path)
+            det = det_model.detect_one_img(entry['id'], abs_path)
             if det:
                 dets += det
         pathlib.Path(os.path.split(det_file)[0]).mkdir(parents=True, exist_ok=True)

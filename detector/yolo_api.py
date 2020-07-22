@@ -84,9 +84,8 @@ class YOLODetector(BaseDetector):
         """
         args = self.detector_opt
         _CUDA = True
-        if args:
-            if args.gpus[0] < 0:
-                _CUDA = False
+        if args and len(args.gpus) == 0:
+            _CUDA = False
         if not self.model:
             self.load_model()
         with torch.no_grad():
@@ -236,7 +235,7 @@ class YOLODetector(BaseDetector):
         #output:(n,(batch_ind,x1,y1,x2,y2,c,s,idx of cls))
         return output
 
-    def detect_one_img(self, img_name):
+    def detect_one_img(self, img_id, img_name):
         """
         Detect bboxs in one image
         Input: 'str', full path of image
@@ -246,9 +245,8 @@ class YOLODetector(BaseDetector):
         """
         args = self.detector_opt
         _CUDA = True
-        if args:
-            if args.gpus[0] < 0:
-                _CUDA = False
+        if args and len(args.gpus) == 0:
+            _CUDA = False
         if not self.model:
             self.load_model()
         if isinstance(self.model, torch.nn.DataParallel):
@@ -286,7 +284,8 @@ class YOLODetector(BaseDetector):
                 det_dict["category_id"] = 1
                 det_dict["score"] = float(dets[i, 5])
                 det_dict["bbox"] = [x, y, w, h]
-                det_dict["image_id"] = int(os.path.basename(img_name).split('.')[0])
+                det_dict["file_name"] = os.path.basename(img_name)
+                det_dict["image_id"] = img_id
                 dets_results.append(det_dict)
 
             return dets_results

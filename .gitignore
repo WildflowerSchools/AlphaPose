@@ -115,3 +115,6 @@ tmp/
 exp/json
 tmp_*/
 example/res/
+
+pytorch
+exp
