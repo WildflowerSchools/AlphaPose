@@ -122,7 +122,9 @@ def validate(m, opt, heatmap_to_coord, batch_size=20):
 
     with open(os.path.join(opt.work_dir, 'test_kpt.json'), 'w') as fid:
         json.dump(kpt_json, fid)
-    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_kpt.json'), cfg_num_keypoints=cfg.DATA_PRESET.NUM_JOINTS, ann_type='keypoints', ann_data_type=cfg.DATASET.VAL.TYPE, ann_file=cfg.DATASET.VAL.ANN)
+
+    ann_file = os.path.join(cfg.DATASET.VAL.ROOT, cfg.DATASET.VAL.ANN)
+    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_kpt.json'), cfg_num_keypoints=cfg.DATA_PRESET.NUM_JOINTS, ann_type='keypoints', ann_data_type=cfg.DATASET.VAL.TYPE, ann_file=ann_file)
     return res['AP']
 
 
@@ -165,7 +167,9 @@ def validate_gt(m, opt, cfg, heatmap_to_coord, batch_size=20):
 
     with open(os.path.join(opt.work_dir, 'test_gt_kpt.json'), 'w') as fid:
         json.dump(kpt_json, fid)
-    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_gt_kpt.json'), cfg_num_keypoints=cfg.DATA_PRESET.NUM_JOINTS, ann_type='keypoints', ann_data_type=cfg.DATASET.VAL.TYPE, ann_file=cfg.DATASET.VAL.ANN)
+
+    ann_file = os.path.join(cfg.DATASET.VAL.ROOT, cfg.DATASET.VAL.ANN)
+    res = evaluate_mAP(os.path.join(opt.work_dir, 'test_gt_kpt.json'), cfg_num_keypoints=cfg.DATA_PRESET.NUM_JOINTS, ann_type='keypoints', ann_data_type=cfg.DATASET.VAL.TYPE, ann_file=ann_file)
     return res['AP']
 
 
@@ -246,13 +250,7 @@ def main():
 def preset_model(cfg):
     model = builder.build_sppe(cfg.MODEL, preset_cfg=cfg.DATA_PRESET)
 
-    if cfg.MODEL.PRETRAINED:
-        logger.info(f'Loading model from {cfg.MODEL.PRETRAINED}...')
-
-        map_location = None if len(opt.gpus) > 0 else torch.device('cpu')
-
-        model.load_state_dict(torch.load(cfg.MODEL.PRETRAINED, map_location=map_location))
-    elif cfg.MODEL.TRY_LOAD:
+    if cfg.MODEL.TRY_LOAD:
         logger.info(f'Loading model from {cfg.MODEL.TRY_LOAD}...')
 
         map_location = None if len(opt.gpus) > 0 else torch.device('cpu')
@@ -264,6 +262,12 @@ def preset_model(cfg):
 
         model_state.update(pretrained_state)
         model.load_state_dict(model_state)
+    elif cfg.MODEL.PRETRAINED:
+        logger.info(f'Loading model from {cfg.MODEL.PRETRAINED}...')
+
+        map_location = None if len(opt.gpus) > 0 else torch.device('cpu')
+
+        model.load_state_dict(torch.load(cfg.MODEL.PRETRAINED, map_location=map_location))
     else:
         logger.info('Create new model')
         logger.info('=> init weights')

@@ -88,8 +88,6 @@ def evaluate_mAP(res_file, cfg_num_keypoints=17, ann_type='bbox', ann_file='anno
         def write(self, arg):
             pass
 
-    ann_file = os.path.join('./data/coco/', ann_file)
-
     if silence:
         nullwrite = NullWriter()
         oldstdout = sys.stdout
