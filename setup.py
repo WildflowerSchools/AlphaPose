@@ -164,7 +164,7 @@ def get_install_requires():
         'opencv-python',
         'matplotlib',
         'visdom',
-        'tqdm',
+        'tqdm>=4.43.0',
         'tensorboardx',
         'easydict',
         'pyyaml',
@@ -172,7 +172,8 @@ def get_install_requires():
         'torchvision>=0.3.0',
         'munkres',
         'timm',
-        'natsort'
+        'natsort',
+        'wf-pytorch-yolo-v4>=0.1.5'
     ]
     # official pycocotools doesn't support Windows, we will install it by third-party git repository later
     if platform.system() != 'Windows':

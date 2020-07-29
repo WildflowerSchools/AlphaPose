@@ -44,7 +44,7 @@ class YOLODetector(BaseDetector):
     def load_model(self):
         args = self.detector_opt
 
-        print('Loading YOLO model..')
+        print('Loading YOLOv3 model..')
         self.model = Darknet(self.model_cfg)
         self.model.load_weights(self.model_weights)
         self.model.net_info['height'] = self.inp_dim
@@ -108,6 +108,7 @@ class YOLODetector(BaseDetector):
                 dets[i, [1, 3]] = torch.clamp(dets[i, [1, 3]], 0.0, orig_dim_list[i, 0])
                 dets[i, [2, 4]] = torch.clamp(dets[i, [2, 4]], 0.0, orig_dim_list[i, 1])
 
+            print(dets)
             return dets
 
     def dynamic_write_results(self, prediction, confidence, num_classes, nms=True, nms_conf=0.4):
