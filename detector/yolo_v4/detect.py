@@ -1,23 +1,15 @@
-from enum import IntEnum, auto
-import os
-
 import numpy as np
 import torch
 from yolov4.tool.class_names import COCO_NAMES
 from yolov4.tool.config import YOLO_V4
 from yolov4.tool.darknet2pytorch import Darknet
-from yolov4.tool.torch_utils import do_detect, time
+from yolov4.tool.torch_utils import do_detect
 from yolov4.tool.utils import load_class_names
 from yolov4.tool.weights import download_weights
 
 
-class DetectorType(IntEnum):
-    PYTORCH_YOLOV4 = auto()
-
-
 class Detector(object):
-    def __init__(self, detector_type=DetectorType.PYTORCH_YOLOV4, conf_threshold=0.5, nms_threshold=0.6, use_cuda=False):
-        self.detector_type = detector_type
+    def __init__(self, conf_threshold=0.5, nms_threshold=0.6, use_cuda=False):
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
         self.use_cuda = use_cuda
@@ -50,9 +42,6 @@ class Detector(object):
             filtered_detections = np.array(det)[filtered_class_ids, :]
             person_detections.append(filtered_detections)
 
-        #filtered_class_ids = np.array(detections)[0, :, 6] == person_class_id
-        #filtered_detections = np.array(detections)[:, filtered_class_ids, :]
-
         width = imgs.shape[2]
         height = imgs.shape[1]
 
@@ -63,19 +52,8 @@ class Detector(object):
             det_boxes = det[:, 0:4]
 
             # Convert from 0.0-1.0 float value to specific pixel location
-            # xmin = (det_boxes[:, 0] - (det_boxes[:, 2] / 2.0)) * width
-            # ymin = (det_boxes[:, 1] - (det_boxes[:, 3] / 2.0)) * height
-            # xmax = (det_boxes[:, 0] + (det_boxes[:, 2] / 2.0)) * width
-            # ymax = (det_boxes[:, 1] + (det_boxes[:, 3] / 2.0)) * height
-            xmin = det_boxes[:, 0] * width
-            ymin = det_boxes[:, 1] * height
-            xmax = det_boxes[:, 2] * width
-            ymax = det_boxes[:, 3] * height
-
-            det_boxes[:, 0] = xmin
-            det_boxes[:, 1] = ymin
-            det_boxes[:, 2] = xmax
-            det_boxes[:, 3] = ymax
+            det_boxes[:, [0, 2]] *= width
+            det_boxes[:, [1, 3]] *= height
 
             boxes.append(det_boxes)
             scores.append(det[:, 5:6])
@@ -88,10 +66,6 @@ class Detector(object):
         timgs = np.array(imgs).transpose((0, 2, 3, 1)).copy()
         imgs, class_ids, scores, bounding_boxes = self._yolov4_detect(timgs)
 
-        # # Filter bounding box detections by threshold
-        # if isinstance(scores, mx.nd.NDArray):
-        #     scores = scores.asnumpy()
-
         filtered_scores = []
         filtered_boxes = []
         filtered_class_ids = []
@@ -102,13 +76,10 @@ class Detector(object):
                 filtered_scores.append([])
                 filtered_boxes.append([])
                 filtered_class_ids.append([])
+                continue
 
             filtered_scores.append(score[threshold_indices])
             filtered_boxes.append(bounding_boxes[idx][threshold_indices])
             filtered_class_ids.append(class_ids[idx][threshold_indices])
 
-        # Filter and retain the original array size
-        # filtered_scores = scores[threshold_indices][np.newaxis, ...]
-        # filtered_boxes = bounding_boxes[threshold_indices][np.newaxis, ...]
-        # filtered_class_ids = class_ids[threshold_indices][np.newaxis, ...]
         return imgs, filtered_class_ids, filtered_scores, filtered_boxes

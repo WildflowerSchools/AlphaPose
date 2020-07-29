@@ -85,6 +85,9 @@ class YOLOV4Detector(BaseDetector):
 
             write = False
             for idx, _ in enumerate(imgs):
+                if len(boxes[idx]) == 0:
+                    continue
+
                 det_new = torch.empty([len(boxes[idx]), 8])
                 det_new[:, 0] = idx  #index of img
                 det_new[:, 1:3] = torch.from_numpy(boxes[idx][:, 0:2])  # bbox x1,y1
@@ -100,21 +103,19 @@ class YOLOV4Detector(BaseDetector):
 
             dets = dets.cpu()
 
-            # orig_dim_list = torch.index_select(orig_dim_list, 0, dets[:, 0].long())
             w_scaling_factor = (self.inp_dim / orig_dim_list[:, 0]).view(-1, 1)
             h_scaling_factor = (self.inp_dim / orig_dim_list[:, 1]).view(-1, 1)
-            #scaling_factor = torch.FloatTensor([1./min(self.inp_dim / orig_dim[0], self.inp_dim / orig_dim[1]) for orig_dim in orig_dim_list]).view(-1, 1)
+
             w_scale = torch.empty([dets.shape[0], 1], dtype=torch.float32)
             h_scale = torch.empty([dets.shape[0], 1])
 
             start = 0
             for idx, _ in enumerate(boxes):
-                w_scale[start:start+len(boxes[idx])] = w_scaling_factor[idx]
-                h_scale[start:start+len(boxes[idx])] = h_scaling_factor[idx]
-                start += len(boxes[idx])
+                if len(boxes[idx]) > 0:
+                    w_scale[start:start+len(boxes[idx])] = w_scaling_factor[idx]
+                    h_scale[start:start+len(boxes[idx])] = h_scaling_factor[idx]
+                    start += len(boxes[idx])
 
-            #dets[:, [1, 3]] -= (self.inp_dim - scaling_factor * orig_dim_list[:, 0].view(-1, 1)) / 2
-            #dets[:, [2, 4]] -= (self.inp_dim - scaling_factor * orig_dim_list[:, 1].view(-1, 1)) / 2
             dets[:, [1, 3]] /= w_scale
             dets[:, [2, 4]] /= h_scale
 
