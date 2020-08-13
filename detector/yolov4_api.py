@@ -80,7 +80,7 @@ class YOLOV4Detector(BaseDetector):
             self.load_model()
 
         with torch.no_grad():
-            # imgs = imgs.to(args.device) if args else imgs.cuda()
+            imgs = imgs.to(args.device) if args else imgs.cuda()
             imgs, class_ids, scores, boxes = self.model.detect(imgs)
 
             write = False
