@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 
 
 def get_detector(opt=None):
-    if opt.detector == 'yolo':
+    if opt.detector == 'yolo' or opt.detector == 'yolov3':
         from detector.yolo_api import YOLODetector
         from detector.yolo_cfg import cfg
         return YOLODetector(cfg, opt)
