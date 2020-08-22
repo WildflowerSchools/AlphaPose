@@ -173,7 +173,7 @@ def get_install_requires():
         'munkres',
         'timm',
         'natsort',
-        'wf-pytorch-yolo-v4>=0.1.6'
+        'wf-pytorch-yolo-v4>=0.1.7'
     ]
     # official pycocotools doesn't support Windows, we will install it by third-party git repository later
     if platform.system() != 'Windows':
