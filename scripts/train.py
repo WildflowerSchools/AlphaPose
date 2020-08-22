@@ -196,7 +196,10 @@ def main():
     # Model Initialize
     m = preset_model(cfg)
     m = nn.DataParallel(m)
-    criterion = builder.build_loss(cfg.LOSS)
+    if cfg.LOSS.TYPE == 'MSELoss':
+        criterion = torch.nn.MSELoss()
+    else:
+        criterion = builder.build_loss(cfg.LOSS)
     if len(opt.gpus) > 0:
         m = m.cuda()
         criterion = criterion.cuda()
