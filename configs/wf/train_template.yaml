@@ -19,7 +19,7 @@ DATASET:
     TYPE: {TYPE_DET}
     ROOT: {ROOT}
     IMG_PREFIX: {IMG_PREFIX}
-    DET_FILE: './exp/json/test_det_yolo.json'
+    DET_FILE: '{DET_FILE_DIR}/test_det_yolo.json'
     ANN: {ANN_VAL}
 DATA_PRESET:
   TYPE: 'simple'
