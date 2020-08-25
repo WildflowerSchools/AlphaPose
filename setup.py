@@ -160,7 +160,8 @@ def get_install_requires():
     install_requires = [
         'six',
         'terminaltables',
-        'scipy==1.1.0',
+        'scipy',
+        'imageio',
         'opencv-python',
         'matplotlib',
         'visdom',
@@ -169,7 +170,7 @@ def get_install_requires():
         'easydict',
         'pyyaml',
         'torch>=1.1.0',
-        'torchvision>=0.3.0',
+        'torchvision<0.6.0',
         'munkres',
         'timm',
         'natsort',

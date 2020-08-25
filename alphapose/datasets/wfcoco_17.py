@@ -7,8 +7,8 @@
 from functools import reduce
 import os
 
+import imageio
 import numpy as np
-import scipy.misc
 
 from alphapose.models.builder import DATASET
 from alphapose.utils.bbox import bbox_clip_xyxy, bbox_xywh_to_xyxy
@@ -28,7 +28,7 @@ class Wfcoco17(Mscoco):
         width = entry['width']
         height = entry['height']
         if width == 0 or height == 0:
-            image = scipy.misc.imread(img_path, mode='RGB')
+            image = imageio.imread(img_path, pilmode='RGB')
             height, width = image.shape[0], image.shape[1]
 
         for obj in objs:

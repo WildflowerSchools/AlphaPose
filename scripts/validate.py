@@ -46,7 +46,7 @@ opt.device = torch.device("cuda:" + str(opt.gpus[0]) if opt.gpus[0] >= 0 else "c
 
 
 def validate(m, heatmap_to_coord, batch_size=20):
-    det_dataset = builder.build_dataset(cfg.DATASET.TEST, preset_cfg=cfg.DATA_PRESET, train=False, opt=opt)
+    det_dataset = builder.build_dataset(cfg.DATASET.TEST, preset_cfg=cfg.DATA_PRESET, detector_cfg=cfg.DETECTOR, train=False, opt=opt)
     eval_joints = det_dataset.EVAL_JOINTS
 
     det_loader = torch.utils.data.DataLoader(
@@ -105,7 +105,7 @@ def validate(m, heatmap_to_coord, batch_size=20):
 
 
 def validate_gt(m, cfg, heatmap_to_coord, batch_size=20):
-    gt_val_dataset = builder.build_dataset(cfg.DATASET.VAL, preset_cfg=cfg.DATA_PRESET, train=False)
+    gt_val_dataset = builder.build_dataset(cfg.DATASET.VAL, preset_cfg=cfg.DATA_PRESET, detector_cfg=cfg.DETECTOR, train=False)
     eval_joints = gt_val_dataset.EVAL_JOINTS
 
     gt_val_loader = torch.utils.data.DataLoader(

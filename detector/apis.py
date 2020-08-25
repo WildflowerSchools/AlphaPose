@@ -7,25 +7,26 @@
 from abc import ABC, abstractmethod
 
 
-def get_detector(opt=None):
+def get_detector(opt=None, cfg=dict()):
+    det = None
     if opt.detector == 'yolo' or opt.detector == 'yolov3':
-        from detector.yolo_api import YOLODetector
-        from detector.yolo_cfg import cfg
-        return YOLODetector(cfg, opt)
-    if opt.detector == 'yolov4':
-        from detector.yolov4_api import YOLOV4Detector
-        from detector.yolov4_cfg import cfg
-        return YOLOV4Detector(cfg, opt)
+        from detector.yolo_api import YOLODetector as det
+        from detector.yolo_cfg import cfg as default_cfg
+    elif opt.detector == 'yolov4':
+        from detector.yolov4_api import YOLOV4Detector as det
+        from detector.yolov4_cfg import cfg as default_cfg
     elif opt.detector == 'tracker':
-        from detector.tracker_api import Tracker
-        from detector.tracker_cfg import cfg
-        return Tracker(cfg, opt)
+        from detector.tracker_api import Tracker as det
+        from detector.tracker_cfg import cfg as default_cfg
     elif opt.detector.startswith('efficientdet_d'):
-        from detector.effdet_api import EffDetDetector
-        from detector.effdet_cfg import cfg
-        return EffDetDetector(cfg, opt)
+        from detector.effdet_api import EffDetDetector as det
+        from detector.effdet_cfg import cfg as default_cfg
     else:
         raise NotImplementedError
+
+    final_cfg = default_cfg.copy()
+    final_cfg.update(cfg)
+    return det(final_cfg, opt)
 
 
 class BaseDetector(ABC):

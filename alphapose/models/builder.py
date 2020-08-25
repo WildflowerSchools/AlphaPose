@@ -31,10 +31,11 @@ def build_loss(cfg):
     return build(cfg, LOSS)
 
 
-def build_dataset(cfg, preset_cfg, **kwargs):
+def build_dataset(cfg, preset_cfg, detector_cfg, **kwargs):
     exec(f'from ..datasets import {cfg.TYPE}')
     default_args = {
         'PRESET': preset_cfg,
+        'DETECTOR': detector_cfg
     }
     for key, value in kwargs.items():
         default_args[key] = value

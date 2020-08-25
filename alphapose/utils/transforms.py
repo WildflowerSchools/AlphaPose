@@ -8,8 +8,8 @@
 import random
 
 import cv2
+import imageio
 import numpy as np
-import scipy.misc
 import torch
 from torch.nn import functional as F
 
@@ -115,7 +115,7 @@ def torch_to_im(img):
 
 def load_image(img_path):
     # H x W x C => C x H x W
-    return im_to_torch(scipy.misc.imread(img_path, mode='RGB'))
+    return im_to_torch(imageio.imread(img_path, pilmode='RGB'))
 
 
 def to_numpy(tensor):

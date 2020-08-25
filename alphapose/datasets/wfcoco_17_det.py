@@ -4,19 +4,15 @@
 # -----------------------------------------------------
 
 """MS COCO Human Detection Box dataset."""
-import json
 import os
 
-import scipy.misc
+import imageio
 import torch
-import torch.utils.data as data
-from tqdm import tqdm
 
-from alphapose.utils.presets import SimpleTransform
-from detector.apis import get_detector
 from alphapose.models.builder import DATASET
 
 from .coco_det import Mscoco_det
+
 
 @DATASET.register_module
 class Wfcoco17_det(Mscoco_det):
@@ -26,7 +22,7 @@ class Wfcoco17_det(Mscoco_det):
         img_path = os.path.join(self._root, self._img_prefix, det_res['file_name'])
 
         # Load image
-        image = scipy.misc.imread(img_path, mode='RGB')
+        image = imageio.imread(img_path, pilmode='RGB')
 
         imght, imgwidth = image.shape[1], image.shape[2]
         x1, y1, w, h = det_res['bbox']

@@ -89,7 +89,7 @@ def train(opt, train_loader, m, criterion, optimizer, writer):
 
 
 def validate(m, opt, heatmap_to_coord, batch_size=20):
-    det_dataset = builder.build_dataset(cfg.DATASET.TEST, preset_cfg=cfg.DATA_PRESET, train=False, opt=opt)
+    det_dataset = builder.build_dataset(cfg.DATASET.TEST, preset_cfg=cfg.DATA_PRESET, detector_cfg=cfg.DETECTOR, train=False, opt=opt)
     det_loader = torch.utils.data.DataLoader(
         det_dataset, batch_size=batch_size, shuffle=False, num_workers=20, drop_last=False)
     kpt_json = []
@@ -139,7 +139,7 @@ def validate(m, opt, heatmap_to_coord, batch_size=20):
 
 
 def validate_gt(m, opt, cfg, heatmap_to_coord, batch_size=20):
-    gt_val_dataset = builder.build_dataset(cfg.DATASET.VAL, preset_cfg=cfg.DATA_PRESET, train=False)
+    gt_val_dataset = builder.build_dataset(cfg.DATASET.VAL, preset_cfg=cfg.DATA_PRESET, detector_cfg=cfg.DETECTOR, train=False)
     eval_joints = gt_val_dataset.EVAL_JOINTS
 
     gt_val_loader = torch.utils.data.DataLoader(
@@ -216,7 +216,7 @@ def main():
 
     writer = SummaryWriter('.tensorboard/{}-{}'.format(opt.exp_id, cfg.FILE_NAME))
 
-    train_dataset = builder.build_dataset(cfg.DATASET.TRAIN, preset_cfg=cfg.DATA_PRESET, train=True)
+    train_dataset = builder.build_dataset(cfg.DATASET.TRAIN, preset_cfg=cfg.DATA_PRESET, detector_cfg=cfg.DETECTOR, train=True)
     print("Dataset Size: %d" % len(train_dataset))
     print("Batch Size: %s" % (cfg.TRAIN.BATCH_SIZE * (num_gpu or 1)))
     print("Num Workers: %s" % (opt.nThreads))
@@ -257,7 +257,7 @@ def main():
                 param_group['lr'] = cfg.TRAIN.LR
             lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg.TRAIN.DPG_STEP, gamma=0.1)
             # Reset dataset
-            train_dataset = builder.build_dataset(cfg.DATASET.TRAIN, preset_cfg=cfg.DATA_PRESET, train=True, dpg=True)
+            train_dataset = builder.build_dataset(cfg.DATASET.TRAIN, preset_cfg=cfg.DATA_PRESET, detector_cfg=cfg.DETECTOR, train=True, dpg=True)
             train_loader = torch.utils.data.DataLoader(
                 train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE * (num_gpu or 1), shuffle=True, num_workers=opt.nThreads)
 
