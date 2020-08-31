@@ -134,43 +134,30 @@ class YOLOV4Detector(BaseDetector):
         The output results are similar with coco results type, except that image_id uses full path str
         instead of coco %012d id for generalization. 
         """
-        args = self.detector_opt
         if not self.model:
             self.load_model()
 
-        dets_results = []
         #pre-process(scale, normalize, ...) the image
-        img, orig_img, img_dim_list = prep_image(img_name, self.inp_dim)
-        with torch.no_grad():
-            img_dim_list = torch.FloatTensor([img_dim_list]).repeat(1, 2)
-            img = img.to(args.device) if args else img.cuda()
+        img, orig_img, orig_dim_list = prep_image(img_name, self.inp_dim)
 
-            dets = self.model.detect(img)
+        if isinstance(img, np.ndarray):
+            img = torch.from_numpy(img)
 
-            if isinstance(dets, int) or dets.shape[0] == 0:
-                return None
-            dets = dets.cpu()
+        # add one dimension at the front for batch if image shape (3,h,w)
+        if img.dim() == 3:
+            img = img.unsqueeze(0)
 
-            img_dim_list = torch.index_select(img_dim_list, 0, dets[:, 0].long())
-            scaling_factor = torch.min(self.inp_dim / img_dim_list, 1)[0].view(-1, 1)
-            dets[:, [1, 3]] -= (self.inp_dim - scaling_factor * img_dim_list[:, 0].view(-1, 1)) / 2
-            dets[:, [2, 4]] -= (self.inp_dim - scaling_factor * img_dim_list[:, 1].view(-1, 1)) / 2
-            dets[:, 1:5] /= scaling_factor
-            for i in range(dets.shape[0]):
-                dets[i, [1, 3]] = torch.clamp(dets[i, [1, 3]], 0.0, img_dim_list[i, 0])
-                dets[i, [2, 4]] = torch.clamp(dets[i, [2, 4]], 0.0, img_dim_list[i, 1])
+        img_dim_list = torch.FloatTensor([orig_dim_list]).repeat(1, 2)
+        dets = self.images_detection(img, img_dim_list).tolist()
 
-                #write results
-                det_dict = {}
-                x = float(dets[i, 1])
-                y = float(dets[i, 2])
-                w = float(dets[i, 3] - dets[i, 1])
-                h = float(dets[i, 4] - dets[i, 2])
-                det_dict["category_id"] = 1
-                det_dict["score"] = float(dets[i, 5])
-                det_dict["bbox"] = [x, y, w, h]
-                det_dict["file_name"] = os.path.basename(img_name)
-                det_dict["image_id"] = img_id
-                dets_results.append(det_dict)
+        dets_results = []
+        for det in dets:
+            det_dict = dict()
+            det_dict["category_id"] = det[6]
+            det_dict["score"] = float(det[5])
+            det_dict["bbox"] = [det[1], det[2], det[3]-det[1], det[4]-det[2]]
+            det_dict["file_name"] = os.path.basename(img_name)
+            det_dict["image_id"] = img_id
+            dets_results.append(det_dict)
 
-            return dets_results
+        return dets_results
