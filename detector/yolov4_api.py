@@ -49,7 +49,7 @@ class YOLOV4Detector(BaseDetector):
             _CUDA = False
 
         print('Loading YOLOv4 model..')
-        self.model = Detector(conf_threshold=self.confidence, nms_threshold=self.nms_thresh, use_cuda=_CUDA)
+        self.model = Detector(configfile=self.model_cfg, weightsfile=self.model_weights, conf_threshold=self.confidence, nms_threshold=self.nms_thresh, use_cuda=_CUDA)
         print("Network successfully loaded")
 
     def image_preprocess(self, img_source):

@@ -9,7 +9,9 @@ from yolov4.tool.weights import download_weights
 
 
 class Detector(object):
-    def __init__(self, conf_threshold=0.5, nms_threshold=0.6, use_cuda=False):
+    def __init__(self, configfile=YOLO_V4, weightsfile=None, conf_threshold=0.5, nms_threshold=0.6, use_cuda=False):
+        self.config_file = configfile
+        self.weights_file = weightsfile
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
         self.use_cuda = use_cuda
@@ -17,10 +19,11 @@ class Detector(object):
         self._init_detector()
 
     def _init_detector(self):
-        weight_file = download_weights()
+        if self.weights_file is None:
+            self.weights_file = download_weights()
 
-        detector = Darknet(YOLO_V4)
-        detector.load_weights(weight_file)
+        detector = Darknet(self.config_file)
+        detector.load_weights(self.weights_file)
 
         if self.use_cuda:
             detector.cuda()
@@ -38,6 +41,10 @@ class Detector(object):
 
         person_detections = []
         for det in detections:
+            if len(det) == 0:
+                person_detections.append(np.array([]))
+                continue
+
             filtered_class_ids = np.array(det)[:, 6] == person_class_id
             filtered_detections = np.array(det)[filtered_class_ids, :]
             person_detections.append(filtered_detections)
@@ -49,15 +56,22 @@ class Detector(object):
         scores = []
         class_ids = []
         for det in person_detections:
-            det_boxes = det[:, 0:4]
+            if det.ndim == 2 and det.shape[1] == 7:
+                det_boxes = det[:, 0:4]
+                # Convert from 0.0-1.0 float value to specific pixel location
+                det_boxes[:, [0, 2]] *= width
+                det_boxes[:, [1, 3]] *= height
 
-            # Convert from 0.0-1.0 float value to specific pixel location
-            det_boxes[:, [0, 2]] *= width
-            det_boxes[:, [1, 3]] *= height
+                det_scores = det[:, 5:6]
+                det_class_ids = det[:, 6:7]
+            else:
+                det_boxes = np.array([])
+                det_scores = np.array([])
+                det_class_ids = np.array([])
 
             boxes.append(det_boxes)
-            scores.append(det[:, 5:6])
-            class_ids.append(det[:, 6:7])
+            scores.append(det_scores)
+            class_ids.append(det_class_ids)
 
         return imgs, class_ids, scores, boxes
 
@@ -70,9 +84,12 @@ class Detector(object):
         filtered_boxes = []
         filtered_class_ids = []
         for idx, score in enumerate(scores):
-            threshold_indices = np.where(score[:, 0] > self.conf_threshold)
+            if scores[idx].ndim == 2:
+                threshold_indices = np.where(score[:, 0] > self.conf_threshold)
+            else:
+                threshold_indices = np.array([])
 
-            if len(threshold_indices[0]) == 0:
+            if len(threshold_indices) == 0 or len(threshold_indices[0]) == 0:
                 filtered_scores.append([])
                 filtered_boxes.append([])
                 filtered_class_ids.append([])
