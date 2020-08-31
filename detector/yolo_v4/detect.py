@@ -31,8 +31,8 @@ class Detector(object):
         self.detector = detector
 
     def _yolov4_detect(self, imgs):
-        if type(imgs) == torch.Tensor:
-            imgs = imgs.numpy()
+        #if type(imgs) == torch.Tensor:
+        #    imgs = imgs.numpy()
 
         detections = do_detect(self.detector, imgs, self.conf_threshold, self.nms_threshold, self.use_cuda)
 
@@ -77,7 +77,8 @@ class Detector(object):
 
     def detect(self, imgs):
         # transpose from [<<batch size>>, 3, 608, 608] to [<<batch size>>, 608, 608, 3]
-        timgs = np.array(imgs).transpose((0, 2, 3, 1)).copy()
+        #timgs = np.array(imgs).transpose((0, 2, 3, 1)).copy()
+        timgs = imgs.clone().permute((0, 2, 3, 1))
         imgs, class_ids, scores, bounding_boxes = self._yolov4_detect(timgs)
 
         filtered_scores = []
