@@ -4,7 +4,7 @@
 # @Date:   2019-10-09 17:42:10
 # @Last Modified by:   Chao Xu
 # @Last Modified time: 2019-10-27 20:20:45
-
+import copy
 import os
 import numpy as np
 
@@ -23,7 +23,7 @@ def get_box(pose, img_height, img_width):
 
 #The wrapper of PoseFlow algorithm to be embedded in alphapose inference
 class PoseFlowWrapper():
-    def __init__(self, link=100, drop=2.0, num=7,
+    def __init__(self, link=os.getenv("ALPHAPOSE_POSEFLOW_LINK_LEN", 100), drop=2.0, num=7,
                  mag=30, match=0.2, save_path='.tmp/poseflow', pool_size=5):
         # super parameters
         # 1. look-ahead LINK_LEN frames to find tracked human bbox
@@ -33,7 +33,7 @@ class PoseFlowWrapper():
         # 5. pick high-score(top NUM) keypoints when computing pose_IOU
         # 6. box width/height around keypoint for computing pose IoU
         # 7. match threshold in Hungarian Matching
-        self.link_len = link
+        self.link_len = int(link)
         self.weights = [1,2,1,2,0,0] 
         self.weights_fff = [0,1,0,1,0,0]
         self.drop = drop
