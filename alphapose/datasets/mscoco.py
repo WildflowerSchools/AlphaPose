@@ -6,7 +6,7 @@
 """MS COCO Human keypoint dataset."""
 import os
 
-import imageio
+import cv2
 import numpy as np
 import scipy.misc
 
@@ -78,7 +78,7 @@ class Mscoco(CustomDataset):
         width = entry['width']
         height = entry['height']
         if width == 0 or height == 0:
-            image = imageio.imread(img_path, pilmode='RGB')
+            image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
             height, width = image.shape[0], image.shape[1]
 
         for obj in objs:

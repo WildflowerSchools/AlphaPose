@@ -5,8 +5,8 @@
 
 """Custum training dataset."""
 import copy
-import imageio
 import os
+import cv2
 import pickle as pk
 from abc import abstractmethod, abstractproperty
 
@@ -98,7 +98,7 @@ class CustomDataset(data.Dataset):
 
         # load ground truth, including bbox, keypoints, image size
         label = copy.deepcopy(self._labels[idx])
-        img = imageio.imread(img_path, pilmode='RGB')
+        img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB) #scipy.misc.imread(img_path, mode='RGB') is depreciated
 
         # transform ground truth into training label and apply data augmentation
         img, label, label_mask, bbox = self.transformation(img, label)

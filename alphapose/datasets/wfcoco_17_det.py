@@ -6,7 +6,7 @@
 """MS COCO Human Detection Box dataset."""
 import os
 
-import imageio
+import cv2
 import torch
 
 from alphapose.models.builder import DATASET
@@ -22,7 +22,7 @@ class Wfcoco17_det(Mscoco_det):
         img_path = os.path.join(self._root, self._img_prefix, det_res['file_name'])
 
         # Load image
-        image = imageio.imread(img_path, pilmode='RGB')
+        image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
 
         imght, imgwidth = image.shape[1], image.shape[2]
         x1, y1, w, h = det_res['bbox']
