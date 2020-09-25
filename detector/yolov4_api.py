@@ -7,7 +7,6 @@
 import os
 import sys
 sys.path.insert(0, os.path.dirname(__file__))
-from abc import ABC, abstractmethod
 import platform
 
 import torch
@@ -83,6 +82,7 @@ class YOLOV4Detector(BaseDetector):
             imgs = imgs.to(args.device) if args else imgs.cuda()
             imgs, class_ids, scores, boxes = self.model.detect(imgs)
 
+            dets = None
             write = False
             for idx, _ in enumerate(imgs):
                 if len(boxes[idx]) == 0:
@@ -100,6 +100,9 @@ class YOLOV4Detector(BaseDetector):
                     write = True
                 else:
                     dets = torch.cat((dets, det_new))
+
+            if dets is None:
+                return 0
 
             dets = dets.cpu()
 

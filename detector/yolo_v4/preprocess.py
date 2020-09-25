@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import torch
 
 
 def letterbox_image(img, inp_dim):
@@ -30,17 +29,8 @@ def prep_image(img, inp_dim):
     img_ = orig_im
     img_ = cv2.resize(img_, (inp_dim, inp_dim))
     img_ = cv2.cvtColor(img_, cv2.COLOR_BGR2RGB)
-    #img_ = (letterbox_image(orig_im, (inp_dim, inp_dim)))
     img_ = img_.transpose((2, 0, 1)).copy()
-    # img_ = torch.from_numpy(img_).float().div(255.0).unsqueeze(0)
     return img_, orig_im, dim
-
-    # orig_img = cv2.imread(img)
-    # dim = orig_img.shape[1], orig_img.shape[0]
-    # img_ = cv2.resize(orig_img, (inp_dim, inp_dim))
-    # img_ = cv2.cvtColor(img_, cv2.COLOR_BGR2RGB)
-    #
-    # return img_, orig_img, dim
 
 
 def prep_frame(img, inp_dim):
@@ -54,5 +44,6 @@ def prep_frame(img, inp_dim):
     dim = orig_img.shape[1], orig_img.shape[0]
     img_ = cv2.resize(orig_img, (inp_dim, inp_dim))
     img_ = cv2.cvtColor(img_, cv2.COLOR_BGR2RGB)
+    img_ = img_.transpose((2, 0, 1)).copy()
 
     return img_, orig_img, dim

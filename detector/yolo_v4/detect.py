@@ -1,5 +1,5 @@
 import numpy as np
-import torch
+
 from yolov4.tool.class_names import COCO_NAMES
 from yolov4.tool.config import YOLO_V4
 from yolov4.tool.darknet2pytorch import Darknet
@@ -31,9 +31,6 @@ class Detector(object):
         self.detector = detector
 
     def _yolov4_detect(self, imgs):
-        #if type(imgs) == torch.Tensor:
-        #    imgs = imgs.numpy()
-
         detections = do_detect(self.detector, imgs, self.conf_threshold, self.nms_threshold, self.use_cuda)
 
         class_names = load_class_names(COCO_NAMES)
