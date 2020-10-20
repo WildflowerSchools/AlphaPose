@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from yolov4.tool.class_names import COCO_NAMES
 from yolov4.tool.config import YOLO_V4
@@ -9,12 +10,16 @@ from yolov4.tool.weights import download_weights
 
 
 class Detector(object):
-    def __init__(self, configfile=YOLO_V4, weightsfile=None, conf_threshold=0.5, nms_threshold=0.6, use_cuda=False):
+    def __init__(self, configfile=YOLO_V4, weightsfile=None, conf_threshold=0.5, nms_threshold=0.6, default_device=-1, device_ids=[-1]):
         self.config_file = configfile
         self.weights_file = weightsfile
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
-        self.use_cuda = use_cuda
+
+        self.device_ids = device_ids
+        self.default_device = default_device
+
+        self.use_cuda = len(device_ids) > 0 and device_ids[0] >= 0
 
         self._init_detector()
 
@@ -22,13 +27,15 @@ class Detector(object):
         if self.weights_file is None:
             self.weights_file = download_weights()
 
-        detector = Darknet(self.config_file)
+        detector = Darknet(self.config_file, use_cuda=self.use_cuda)
         detector.load_weights(self.weights_file)
 
-        if self.use_cuda:
-            detector.cuda()
-
         self.detector = detector
+
+        if len(self.device_ids) > 1:
+            self.detector = torch.nn.DataParallel(self.detector, device_ids=self.device_ids).to(self.default_device)
+        else:
+            self.detector.to(self.default_device)
 
     def _yolov4_detect(self, imgs):
         detections = do_detect(self.detector, imgs, self.conf_threshold, self.nms_threshold, self.use_cuda)

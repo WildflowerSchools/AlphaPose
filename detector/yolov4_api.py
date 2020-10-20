@@ -43,12 +43,10 @@ class YOLOV4Detector(BaseDetector):
 
     def load_model(self):
         args = self.detector_opt
-        _CUDA = True
-        if args and args.gpus[0] < 0:
-            _CUDA = False
 
         print('Loading YOLOv4 model..')
-        self.model = Detector(configfile=self.model_cfg, weightsfile=self.model_weights, conf_threshold=self.confidence, nms_threshold=self.nms_thresh, use_cuda=_CUDA)
+        with torch.cuda.device(args.gpus[0] if len(args.gpus) > 0 else -1):
+            self.model = Detector(configfile=self.model_cfg, weightsfile=self.model_weights, conf_threshold=self.confidence, nms_threshold=self.nms_thresh, device_ids=args.gpus, default_device=args.device)
         print("Network successfully loaded")
 
     def image_preprocess(self, img_source):
