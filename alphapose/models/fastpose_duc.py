@@ -43,7 +43,7 @@ class FastPose_DUC(nn.Module):
 
         model_state = self.preact.state_dict()
         state = {k: v for k, v in x.state_dict().items()
-                 if k in self.preact.state_dict() and v.size() == self.preact.state_dict()[k].size()}
+                 if k in model_state and v.size() == model_state[k].size()}
         model_state.update(state)
         self.preact.load_state_dict(model_state)
         self.norm_layer = norm_layer
