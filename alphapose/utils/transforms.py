@@ -5,11 +5,12 @@
 
 """Pose related transforrmation functions."""
 
-import torch
-import cv2
-import scipy.misc
-import numpy as np
 import random
+
+import cv2
+import numpy as np
+import torch
+from torch.nn import functional as F
 
 
 def rnd(x):
@@ -113,7 +114,7 @@ def torch_to_im(img):
 
 def load_image(img_path):
     # H x W x C => C x H x W
-    return im_to_torch(scipy.misc.imread(img_path, mode='RGB'))
+    return im_to_torch(cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB))#scipy.misc.imread(img_path, mode='RGB'))
 
 
 def to_numpy(tensor):
@@ -582,7 +583,11 @@ def flip_joints_3d(joints_3d, width, joint_pairs):
     return joints
 
 
-def heatmap_to_coord_simple(hms, bbox):
+def heatmap_to_coord_simple(hms, bbox, hms_flip=None, **kwargs):
+    if hms_flip is not None:
+        hms = (hms + hms_flip) / 2
+    if not isinstance(hms,np.ndarray):
+        hms = hms.cpu().data.numpy()
     coords, maxvals = get_max_pred(hms)
 
     hm_h = hms.shape[1]
@@ -612,6 +617,125 @@ def heatmap_to_coord_simple(hms, bbox):
                                    [hm_w, hm_h])
 
     return preds, maxvals
+
+
+def heatmap_to_coord_simple_regress(preds, bbox, hm_shape, norm_type, hms_flip=None):
+    def integral_op(hm_1d):
+        if hm_1d.device.index is not None:
+            hm_1d = hm_1d * torch.cuda.comm.broadcast(torch.arange(hm_1d.shape[-1]).type(
+                torch.cuda.FloatTensor), devices=[hm_1d.device.index])[0]
+        else:
+            hm_1d = hm_1d * torch.arange(hm_1d.shape[-1]).type(torch.FloatTensor)
+        return hm_1d
+
+    if preds.dim() == 3:
+        preds = preds.unsqueeze(0)
+    hm_height, hm_width = hm_shape
+    num_joints = preds.shape[1]
+
+    pred_jts, pred_scores = _integral_tensor(preds, num_joints, False, hm_width, hm_height, 1, integral_op, norm_type)
+    pred_jts = pred_jts.reshape(pred_jts.shape[0], num_joints, 2)
+
+    if hms_flip is not None:
+        if hms_flip.dim() == 3:
+            hms_flip = hms_flip.unsqueeze(0)
+        pred_jts_flip, pred_scores_flip = _integral_tensor(hms_flip, num_joints, False, hm_width, hm_height, 1, integral_op, norm_type)
+        pred_jts_flip = pred_jts_flip.reshape(pred_jts_flip.shape[0], num_joints, 2)
+
+        pred_jts = (pred_jts + pred_jts_flip) / 2
+        pred_scores = (pred_scores + pred_scores_flip) / 2
+
+    ndims = pred_jts.dim()
+    assert ndims in [2, 3], "Dimensions of input heatmap should be 3 or 4"
+    if ndims == 2:
+        pred_jts = pred_jts.unsqueeze(0)
+        pred_scores = pred_scores.unsqueeze(0)
+
+    coords = pred_jts.cpu().numpy()
+    coords = coords.astype(np.float32)
+    pred_scores = pred_scores.cpu().numpy()
+    pred_scores = pred_scores.astype(np.float32)
+
+    coords[:, :, 0] = (coords[:, :, 0] + 0.5) * hm_width
+    coords[:, :, 1] = (coords[:, :, 1] + 0.5) * hm_height
+
+    preds = np.zeros_like(coords)
+    # transform bbox to scale
+    xmin, ymin, xmax, ymax = bbox
+    w = xmax - xmin
+    h = ymax - ymin
+    center = np.array([xmin + w * 0.5, ymin + h * 0.5])
+    scale = np.array([w, h])
+    # Transform back
+    for i in range(coords.shape[0]):
+        for j in range(coords.shape[1]):
+            preds[i, j, 0:2] = transform_preds(coords[i, j, 0:2], center, scale,
+                                               [hm_width, hm_height])
+
+    if preds.shape[0] == 1:
+        preds = preds[0]
+        pred_scores = pred_scores[0]
+    return preds, pred_scores
+
+
+def _integral_tensor(preds, num_joints, output_3d, hm_width, hm_height, hm_depth, integral_operation, norm_type='softmax'):
+    # normalization
+    preds = preds.reshape((preds.shape[0], num_joints, -1))
+    preds = norm_heatmap(norm_type, preds)
+
+    # get heatmap confidence
+    if norm_type == 'sigmoid':
+        maxvals, _ = torch.max(preds, dim=2, keepdim=True)
+    else:
+        maxvals = torch.ones(
+            (*preds.shape[:2], 1), dtype=torch.float, device=preds.device)
+
+    # normalized to probability
+    heatmaps = preds / preds.sum(dim=2, keepdim=True)
+    heatmaps = heatmaps.reshape(
+        (heatmaps.shape[0], num_joints, hm_depth, hm_height, hm_width))
+
+    # The edge probability
+    hm_x = heatmaps.sum((2, 3))
+    hm_y = heatmaps.sum((2, 4))
+    hm_z = heatmaps.sum((3, 4))
+
+    hm_x = integral_operation(hm_x)
+    hm_y = integral_operation(hm_y)
+    hm_z = integral_operation(hm_z)
+
+    coord_x = hm_x.sum(dim=2, keepdim=True)
+    coord_y = hm_y.sum(dim=2, keepdim=True)
+    coord_z = hm_z.sum(dim=2, keepdim=True)
+
+    coord_x = coord_x / float(hm_width) - 0.5
+    coord_y = coord_y / float(hm_height) - 0.5
+    if output_3d:
+        coord_z = coord_z / float(hm_depth) - 0.5
+        pred_jts = torch.cat((coord_x, coord_y, coord_z), dim=2)
+        pred_jts = pred_jts.reshape((pred_jts.shape[0], num_joints * 3))
+    else:
+        pred_jts = torch.cat((coord_x, coord_y), dim=2)
+        pred_jts = pred_jts.reshape((pred_jts.shape[0], num_joints * 2))
+    return pred_jts, maxvals.float()
+
+
+def norm_heatmap(norm_type, heatmap):
+    # Input tensor shape: [N,C,...]
+    shape = heatmap.shape
+    if norm_type == 'softmax':
+        heatmap = heatmap.reshape(*shape[:2], -1)
+        # global soft max
+        heatmap = F.softmax(heatmap, 2)
+        return heatmap.reshape(*shape)
+    elif norm_type == 'sigmoid':
+        return heatmap.sigmoid()
+    elif norm_type == 'divide_sum':
+        heatmap = heatmap.reshape(*shape[:2], -1)
+        heatmap = heatmap / heatmap.sum(dim=2, keepdim=True)
+        return heatmap.reshape(*shape)
+    else:
+        raise NotImplementedError
 
 
 def transform_preds(coords, center, scale, output_size):
@@ -710,6 +834,9 @@ def affine_transform(pt, t):
 
 def get_func_heatmap_to_coord(cfg):
     if cfg.DATA_PRESET.TYPE == 'simple':
-        return heatmap_to_coord_simple
+        if cfg.LOSS.TYPE == 'MSELoss':
+            return heatmap_to_coord_simple
+        elif cfg.LOSS.TYPE == 'L1JointRegression':
+            return heatmap_to_coord_simple_regress
     else:
         raise NotImplementedError

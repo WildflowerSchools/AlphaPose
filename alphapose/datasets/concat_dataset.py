@@ -36,6 +36,7 @@ class ConcatDataset(data.Dataset):
         self._cfg = cfg
         self._subset_cfg_list = cfg['SET_LIST']
         self._preset_cfg = cfg['PRESET']
+        self._detector_cfg = cfg['DETECTOR']
         self._mask_id = [item['MASK_ID'] for item in self._subset_cfg_list]
 
         self.num_joints = self._preset_cfg['NUM_JOINTS']
@@ -43,7 +44,7 @@ class ConcatDataset(data.Dataset):
         self._subsets = []
         self._subset_size = [0]
         for _subset_cfg in self._subset_cfg_list:
-            subset = build_dataset(_subset_cfg, preset_cfg=self._preset_cfg, train=train)
+            subset = build_dataset(_subset_cfg, preset_cfg=self._preset_cfg, detector_cfg=self._detector_cfg, train=train)
             self._subsets.append(subset)
             self._subset_size.append(len(subset))
         self.cumulative_sizes = self.cumsum(self._subset_size)

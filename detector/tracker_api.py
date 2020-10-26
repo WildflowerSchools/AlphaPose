@@ -94,7 +94,7 @@ class Tracker(BaseDetector):
         args = self.tracker_opt
         _CUDA = True
         if args:
-            if args.gpus[0] < 0:
+            if len(args.gpus) == 0:
                 _CUDA = False
         if not self.model:
             self.load_model()

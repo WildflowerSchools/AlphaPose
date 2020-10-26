@@ -6,10 +6,10 @@
 """Custum training dataset."""
 import copy
 import os
+import cv2
 import pickle as pk
 from abc import abstractmethod, abstractproperty
 
-import scipy.misc
 import torch.utils.data as data
 from pycocotools.coco import COCO
 
@@ -71,6 +71,8 @@ class CustomDataset(data.Dataset):
 
         self.num_class = len(self.CLASSES)
 
+        self._loss_type = self._preset_cfg.get('LOSS_TYPE', 'MSELoss')
+
         self.upper_body_ids = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         self.lower_body_ids = (11, 12, 13, 14, 15, 16)
 
@@ -80,7 +82,8 @@ class CustomDataset(data.Dataset):
                 input_size=self._input_size,
                 output_size=self._output_size,
                 rot=self._rot, sigma=self._sigma,
-                train=self._train, add_dpg=self._dpg)
+                train=self._train, add_dpg=self._dpg,
+                loss_type=self._loss_type)
         else:
             raise NotImplementedError
 
@@ -88,12 +91,14 @@ class CustomDataset(data.Dataset):
 
     def __getitem__(self, idx):
         # get image id
-        img_path = self._items[idx]
-        img_id = int(os.path.splitext(os.path.basename(img_path))[0])
+        #img_path = self._items[idx]
+        #img_id = os.path.splitext(os.path.basename(img_path))[0]
+        img_id = self._items[idx]
+        img_path = os.path.join(self._root, self._img_prefix, self._labels[idx]['file_name'])
 
         # load ground truth, including bbox, keypoints, image size
         label = copy.deepcopy(self._labels[idx])
-        img = scipy.misc.imread(img_path, mode='RGB')
+        img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB) #scipy.misc.imread(img_path, mode='RGB') is depreciated
 
         # transform ground truth into training label and apply data augmentation
         img, label, label_mask, bbox = self.transformation(img, label)

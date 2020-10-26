@@ -6,7 +6,9 @@
 """MS COCO Human keypoint dataset."""
 import os
 
+import cv2
 import numpy as np
+import scipy.misc
 
 from alphapose.models.builder import DATASET
 from alphapose.utils.bbox import bbox_clip_xyxy, bbox_xywh_to_xyxy
@@ -31,13 +33,8 @@ class Mscoco(CustomDataset):
     CLASSES = ['person']
     EVAL_JOINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     num_joints = 17
-
-    @property
-    def joint_pairs(self):
-        """Joint pairs which defines the pairs of joint to be swapped
-        when the image is flipped horizontally."""
-        return [[1, 2], [3, 4], [5, 6], [7, 8],
-                [9, 10], [11, 12], [13, 14], [15, 16]]
+    joint_pairs = [[1, 2], [3, 4], [5, 6], [7, 8],
+                   [9, 10], [11, 12], [13, 14], [15, 16]]
 
     def _load_jsons(self):
         """Load all image paths and labels from JSON annotation files into buffer."""
@@ -46,7 +43,7 @@ class Mscoco(CustomDataset):
 
         _coco = self._lazy_load_ann_file()
         classes = [c['name'] for c in _coco.loadCats(_coco.getCatIds())]
-        assert classes == self.CLASSES, "Incompatible category names with COCO. "
+        # assert classes == self.CLASSES, "Incompatible category names with COCO. "
 
         self.json_id_to_contiguous = {
             v: k for k, v in enumerate(_coco.getCatIds())}
@@ -55,21 +52,24 @@ class Mscoco(CustomDataset):
         image_ids = sorted(_coco.getImgIds())
         for entry in _coco.loadImgs(image_ids):
             dirname, filename = entry['coco_url'].split('/')[-2:]
+            if self._img_prefix:
+                dirname = self._img_prefix
             abs_path = os.path.join(self._root, dirname, filename)
             if not os.path.exists(abs_path):
                 raise IOError('Image: {} not exists.'.format(abs_path))
-            label = self._check_load_keypoints(_coco, entry)
+            label = self._check_load_keypoints(_coco, entry, abs_path)
             if not label:
                 continue
 
             # num of items are relative to person, not image
             for obj in label:
-                items.append(abs_path)
+                # items.append(abs_path)
+                items.append(int(entry['id']))
                 labels.append(obj)
 
         return items, labels
 
-    def _check_load_keypoints(self, coco, entry):
+    def _check_load_keypoints(self, coco, entry, img_path):
         """Check and load ground-truth keypoints"""
         ann_ids = coco.getAnnIds(imgIds=entry['id'], iscrowd=False)
         objs = coco.loadAnns(ann_ids)
@@ -77,20 +77,27 @@ class Mscoco(CustomDataset):
         valid_objs = []
         width = entry['width']
         height = entry['height']
+        if width == 0 or height == 0:
+            image = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+            height, width = image.shape[0], image.shape[1]
 
         for obj in objs:
             contiguous_cid = self.json_id_to_contiguous[obj['category_id']]
             if contiguous_cid >= self.num_class:
                 # not class of interest
+                print("not class of interest: %d" % contiguous_cid)
                 continue
             if max(obj['keypoints']) == 0:
+                print("no visible keypoints")
                 continue
             # convert from (x, y, w, h) to (xmin, ymin, xmax, ymax) and clip bound
             xmin, ymin, xmax, ymax = bbox_clip_xyxy(bbox_xywh_to_xyxy(obj['bbox']), width, height)
             # require non-zero box area
             if obj['area'] <= 0 or xmax <= xmin or ymax <= ymin:
+                print("bbox area: Area - %d; Xmax - %d, Xmin - %d, Ymax - %d, Ymin - %d" % (obj['area'], xmax, xmin, ymax, ymin))
                 continue
             if obj['num_keypoints'] == 0:
+                print("no keypoints")
                 continue
             # joints 3d: (num_joints, 3, 2); 3 is for x, y, z; 2 is for position, visibility
             joints_3d = np.zeros((self.num_joints, 3, 2), dtype=np.float32)
@@ -104,6 +111,7 @@ class Mscoco(CustomDataset):
 
             if np.sum(joints_3d[:, 0, 1]) < 1:
                 # no visible keypoint
+                print("no visible keypoints - summed validation")
                 continue
 
             if self._check_centers and self._train:
@@ -111,9 +119,11 @@ class Mscoco(CustomDataset):
                 kp_center, num_vis = self._get_keypoints_center_count(joints_3d)
                 ks = np.exp(-2 * np.sum(np.square(bbox_center - kp_center)) / bbox_area)
                 if (num_vis / 80.0 + 47 / 80.0) > ks:
+                    print("check center validation failed")
                     continue
 
             valid_objs.append({
+                'file_name': entry['file_name'],
                 'bbox': (xmin, ymin, xmax, ymax),
                 'width': width,
                 'height': height,
@@ -124,6 +134,7 @@ class Mscoco(CustomDataset):
             if not self._skip_empty:
                 # dummy invalid labels if no valid objects are found
                 valid_objs.append({
+                    'file_name': entry['file_name'],
                     'bbox': np.array([-1, -1, 0, 0]),
                     'width': width,
                     'height': height,
